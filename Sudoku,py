@@ -1,4 +1,4 @@
-# Sudoku solver using Pyomo by auke.greijdanus@gmail.com
+# Sudoku solver in Pyomo by auke.greijdanus@gmail.com
 # Solver (windows binary): https://www.scipopt.org/download.php?fname=scipampl-7.0.0.win.x86_64.intel.opt.spx2.exe.zip
 
 from pyomo.environ import *
@@ -40,9 +40,9 @@ for rowNo,row in enumerate(sudoku):
             m.x[rowNo+1,colNo+1].value = number
 
 
-def constr1(m, i, j):
+def constr_sud(m, i, j):
     return sum((m.b1[i,j,z] * oneToNine[z]) for z in m.z) == m.x[i,j]
-m.constr1 = Constraint(m.i, m.j, rule=constr1)
+m.constr_sud = Constraint(m.i, m.j, rule=constr_sud)
 
 def constr_col(m, j, z):
     return sum(m.b1[i,j,z] for i in m.i) == 1
@@ -52,9 +52,9 @@ def constr_row(m, i, z):
     return sum(m.b1[i,j,z] for j in m.j) == 1
 m.constr_row = Constraint(m.i , m.z, rule=constr_row)
 
-def constr_block(m, b, z):
+def constr_blk(m, b, z):
     return sum(sum((m.b2[b,i,j] * m.b1[i,j,z]) for i in m.i) for j in m.j) == 1
-m.constr_block = Constraint(m.b, m.z, rule=constr_block)
+m.constr_blk = Constraint(m.b, m.z, rule=constr_blk)
 
 m.constr_obj = Constraint(rule=m.objc == 1)
 
