@@ -1,18 +1,18 @@
-# Sudoku solver in Pyomo by auke.greijdanus@gmail.com
-# Solver (windows binary): https://www.scipopt.org/download.php?fname=scipampl-7.0.0.win.x86_64.intel.opt.spx2.exe.zip
+# Pyomo Sudoku solver by auke.greijdanus@gmail.com
+# Solver: https://www.scipopt.org/download.php?fname=scipampl-7.0.0.win.x86_64.intel.opt.spx2.exe.zip
 
 from pyomo.environ import *
 
 sudoku = [
-[0,0,6,3,0,7,0,0,0],
-[0,0,4,0,0,0,0,0,5],
-[1,0,0,0,0,6,0,8,2],
-[2,0,5,0,3,0,1,0,6],
-[0,0,0,2,0,0,3,0,0],
-[9,0,0,0,7,0,0,0,4],
-[0,5,0,0,0,0,0,0,0],
-[0,1,0,0,0,0,0,0,0],
-[0,0,8,1,0,9,0,4,0]
+[0,0,0,0,0,0,4,0,3],
+[5,0,0,7,0,4,0,0,1],
+[0,0,4,5,0,0,0,7,0],
+[0,0,1,0,7,0,0,9,8],
+[0,0,0,4,0,6,0,0,0],
+[3,8,0,0,9,0,7,0,0],
+[0,1,0,0,0,8,5,0,0],
+[9,0,0,1,0,7,0,0,6],
+[8,0,5,0,0,0,0,0,0]
 ]
 
 m = ConcreteModel()
@@ -24,8 +24,8 @@ m.b = Set()
 oneToNine = {1:1,2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9}
 
 m.x = Var(m.i, m.j, within=PositiveIntegers, bounds=(1,9))
-m.b1 = Var(m.i, m.j, m.z, within=Binary)
-m.b2 = Var(m.b, m.i, m.j, within=Binary)
+m.bin = Var(m.i, m.j, m.z, within=Binary)
+m.t = Param(m.b, m.i, m.j, default=0, mutable=True)
 m.objc = Var()
 
 for rowNo,row in enumerate(sudoku):
@@ -33,27 +33,25 @@ for rowNo,row in enumerate(sudoku):
         blockNo = ceil((rowNo+1)/3)**2 * ceil((colNo+1)/3)
         if blockNo not in m.b:
             m.b.add(blockNo)
-        m.b2[blockNo,rowNo+1,colNo+1].fixed = True
-        m.b2[blockNo,rowNo+1,colNo+1].value = 1
+        m.t[blockNo,rowNo+1,colNo+1] = 1
         if number > 0:
             m.x[rowNo+1,colNo+1].fixed = True
             m.x[rowNo+1,colNo+1].value = number
 
-
 def constr_sud(m, i, j):
-    return sum((m.b1[i,j,z] * oneToNine[z]) for z in m.z) == m.x[i,j]
+    return sum((m.bin[i,j,z] * oneToNine[z]) for z in m.z) == m.x[i,j]
 m.constr_sud = Constraint(m.i, m.j, rule=constr_sud)
 
-def constr_col(m, j, z):
-    return sum(m.b1[i,j,z] for i in m.i) == 1
-m.constr_col = Constraint(m.j , m.z, rule=constr_col)
+def constr_row(m, j, z):
+    return sum(m.bin[i,j,z] for i in m.i) == 1
+m.constr_row = Constraint(m.j , m.z, rule=constr_row)
 
-def constr_row(m, i, z):
-    return sum(m.b1[i,j,z] for j in m.j) == 1
-m.constr_row = Constraint(m.i , m.z, rule=constr_row)
+def constr_col(m, i, z):
+    return sum(m.bin[i,j,z] for j in m.j) == 1
+m.constr_col = Constraint(m.i , m.z, rule=constr_col)
 
 def constr_blk(m, b, z):
-    return sum(sum((m.b2[b,i,j] * m.b1[i,j,z]) for i in m.i) for j in m.j) == 1
+    return sum(sum((m.t[b,i,j] * m.bin[i,j,z]) for i in m.i) for j in m.j) == 1
 m.constr_blk = Constraint(m.b, m.z, rule=constr_blk)
 
 m.constr_obj = Constraint(rule=m.objc == 1)
